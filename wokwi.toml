@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = "build/arduino.avr.uno/plant_care_freertos_wokwi.ino.hex"
+elf = "build/arduino.avr.uno/plant_care_freertos_wokwi.ino.elf"

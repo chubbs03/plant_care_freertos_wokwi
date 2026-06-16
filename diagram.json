@@ -1,0 +1,494 @@
+{
+  "version": 1,
+  "author": "ChatGPT",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-arduino-uno",
+      "id": "uno",
+      "top": 120,
+      "left": 40,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "soilPot",
+      "top": -60,
+      "left": -230,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "tempPot",
+      "top": 40,
+      "left": -230,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "humPot",
+      "top": 140,
+      "left": -230,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "modeBtn",
+      "top": -80,
+      "left": 410,
+      "attrs": {
+        "color": "red",
+        "label": "MODE"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "pumpBtn",
+      "top": 20,
+      "left": 410,
+      "attrs": {
+        "color": "blue",
+        "label": "PUMP"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "lightBtn",
+      "top": 120,
+      "left": 410,
+      "attrs": {
+        "color": "yellow",
+        "label": "LIGHT"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "fanBtn",
+      "top": 220,
+      "left": 410,
+      "attrs": {
+        "color": "green",
+        "label": "FAN"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "pumpLed",
+      "top": 360,
+      "left": -200,
+      "attrs": {
+        "color": "blue",
+        "label": "PUMP OUT"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rPump",
+      "top": 395,
+      "left": -120,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "lightLed",
+      "top": 420,
+      "left": -200,
+      "attrs": {
+        "color": "yellow",
+        "label": "LIGHT OUT"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rLight",
+      "top": 455,
+      "left": -120,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "fanLed",
+      "top": 480,
+      "left": -200,
+      "attrs": {
+        "color": "green",
+        "label": "FAN OUT"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rFan",
+      "top": 515,
+      "left": -120,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "soilLed",
+      "top": 360,
+      "left": 410,
+      "attrs": {
+        "color": "red",
+        "label": "SOIL TRIG"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rSoil",
+      "top": 395,
+      "left": 490,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "tempLed",
+      "top": 420,
+      "left": 410,
+      "attrs": {
+        "color": "orange",
+        "label": "TEMP TRIG"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rTemp",
+      "top": 455,
+      "left": 490,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "humLed",
+      "top": 480,
+      "left": 410,
+      "attrs": {
+        "color": "purple",
+        "label": "HUM TRIG"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rHum",
+      "top": 515,
+      "left": 490,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "modeLed",
+      "top": 540,
+      "left": 410,
+      "attrs": {
+        "color": "white",
+        "label": "MANUAL MODE"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rMode",
+      "top": 575,
+      "left": 490,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd1",
+      "top": -220,
+      "left": 100,
+      "attrs": {
+        "pins": "i2c"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "displayBtn",
+      "top": 320,
+      "left": 410,
+      "attrs": {
+        "color": "purple",
+        "label": "DISPLAY"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "uno:5V",
+      "soilPot:VCC",
+      "red",
+      []
+    ],
+    [
+      "uno:GND.1",
+      "soilPot:GND",
+      "black",
+      []
+    ],
+    [
+      "soilPot:SIG",
+      "uno:A0",
+      "green",
+      []
+    ],
+    [
+      "uno:5V",
+      "tempPot:VCC",
+      "red",
+      []
+    ],
+    [
+      "uno:GND.1",
+      "tempPot:GND",
+      "black",
+      []
+    ],
+    [
+      "tempPot:SIG",
+      "uno:A1",
+      "green",
+      []
+    ],
+    [
+      "uno:5V",
+      "humPot:VCC",
+      "red",
+      []
+    ],
+    [
+      "uno:GND.1",
+      "humPot:GND",
+      "black",
+      []
+    ],
+    [
+      "humPot:SIG",
+      "uno:A2",
+      "green",
+      []
+    ],
+    [
+      "modeBtn:1.r",
+      "uno:11",
+      "green",
+      []
+    ],
+    [
+      "modeBtn:2.r",
+      "uno:GND.2",
+      "black",
+      []
+    ],
+    [
+      "pumpBtn:1.r",
+      "uno:5",
+      "green",
+      []
+    ],
+    [
+      "pumpBtn:2.r",
+      "uno:GND.2",
+      "black",
+      []
+    ],
+    [
+      "lightBtn:1.r",
+      "uno:6",
+      "green",
+      []
+    ],
+    [
+      "lightBtn:2.r",
+      "uno:GND.2",
+      "black",
+      []
+    ],
+    [
+      "fanBtn:1.r",
+      "uno:7",
+      "green",
+      []
+    ],
+    [
+      "fanBtn:2.r",
+      "uno:GND.2",
+      "black",
+      []
+    ],
+    [
+      "uno:2",
+      "rPump:1",
+      "blue",
+      []
+    ],
+    [
+      "rPump:2",
+      "pumpLed:A",
+      "blue",
+      []
+    ],
+    [
+      "pumpLed:C",
+      "uno:GND.3",
+      "black",
+      []
+    ],
+    [
+      "uno:3",
+      "rLight:1",
+      "gold",
+      []
+    ],
+    [
+      "rLight:2",
+      "lightLed:A",
+      "gold",
+      []
+    ],
+    [
+      "lightLed:C",
+      "uno:GND.3",
+      "black",
+      []
+    ],
+    [
+      "uno:4",
+      "rFan:1",
+      "green",
+      []
+    ],
+    [
+      "rFan:2",
+      "fanLed:A",
+      "green",
+      []
+    ],
+    [
+      "fanLed:C",
+      "uno:GND.3",
+      "black",
+      []
+    ],
+    [
+      "uno:8",
+      "rSoil:1",
+      "red",
+      []
+    ],
+    [
+      "rSoil:2",
+      "soilLed:A",
+      "red",
+      []
+    ],
+    [
+      "soilLed:C",
+      "uno:GND.3",
+      "black",
+      []
+    ],
+    [
+      "uno:9",
+      "rTemp:1",
+      "orange",
+      []
+    ],
+    [
+      "rTemp:2",
+      "tempLed:A",
+      "orange",
+      []
+    ],
+    [
+      "tempLed:C",
+      "uno:GND.3",
+      "black",
+      []
+    ],
+    [
+      "uno:10",
+      "rHum:1",
+      "purple",
+      []
+    ],
+    [
+      "rHum:2",
+      "humLed:A",
+      "purple",
+      []
+    ],
+    [
+      "humLed:C",
+      "uno:GND.3",
+      "black",
+      []
+    ],
+    [
+      "uno:13",
+      "rMode:1",
+      "white",
+      []
+    ],
+    [
+      "rMode:2",
+      "modeLed:A",
+      "white",
+      []
+    ],
+    [
+      "modeLed:C",
+      "uno:GND.3",
+      "black",
+      []
+    ],
+    [
+      "lcd1:GND",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "lcd1:VCC",
+      "uno:5V",
+      "red",
+      []
+    ],
+    [
+      "lcd1:SDA",
+      "uno:A4",
+      "green",
+      []
+    ],
+    [
+      "lcd1:SCL",
+      "uno:A5",
+      "green",
+      []
+    ],
+    [
+      "displayBtn:1.r",
+      "uno:12",
+      "green",
+      []
+    ],
+    [
+      "displayBtn:2.r",
+      "uno:GND.2",
+      "black",
+      []
+    ]
+  ],
+  "dependencies": {}
+}

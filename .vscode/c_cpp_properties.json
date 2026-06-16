@@ -1,0 +1,32 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "Arduino Uno",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "C:/Users/Admin/AppData/Local/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/bin/avr-gcc.exe",
+      "cStandard": "c11",
+      "cppStandard": "c++11",
+      "defines": [
+        "ARDUINO=10819",
+        "ARDUINO_AVR_UNO",
+        "ARDUINO_ARCH_AVR",
+        "F_CPU=16000000L",
+        "__AVR_ATmega328P__"
+      ],
+      "includePath": [
+        "${workspaceFolder}/**",
+        "C:/Users/Admin/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.7/cores/arduino",
+        "C:/Users/Admin/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.7/variants/standard",
+        "C:/Users/Admin/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.7/libraries/**",
+        "C:/Users/Admin/AppData/Local/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/avr/include",
+        "C:/Users/Admin/AppData/Local/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/lib/gcc/avr/7.3.0/include",
+        "C:/Users/Admin/OneDrive/Documents/Arduino/libraries/FreeRTOS/src",
+        "C:/Users/Admin/OneDrive/Documents/Arduino/libraries/LiquidCrystal_I2C"
+      ],
+      "forcedInclude": [
+        "C:/Users/Admin/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.7/cores/arduino/Arduino.h"
+      ]
+    }
+  ]
+}
