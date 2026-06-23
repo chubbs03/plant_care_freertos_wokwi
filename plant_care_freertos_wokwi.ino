@@ -1,4 +1,5 @@
 #include <Arduino_FreeRTOS.h>
+#include <semphr.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
@@ -55,6 +56,9 @@ volatile bool g_humidityIsLow = false;
 volatile uint8_t displayMode = 0;
 const uint8_t DISPLAY_MODE_COUNT = 5;
 
+// BINARY SEMAPHORE
+SemaphoreHandle_t xModeSemaphore = NULL;
+
 // TASK PROTOTYPES
 
 void TaskManualControl(void *pvParameters);
@@ -98,11 +102,13 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("Initializing...");
 
+  xModeSemaphore = xSemaphoreCreateBinary();
+
   // Priority 3 (highest)
   xTaskCreate(
     TaskManualControl,
     "Manual",
-    96,
+    88,
     NULL,
     3,
     NULL
@@ -112,7 +118,7 @@ void setup() {
   xTaskCreate(
     TaskSensor,
     "Sensor",
-    80,
+    64,
     NULL,
     2,
     NULL
@@ -122,7 +128,7 @@ void setup() {
   xTaskCreate(
     TaskAutoControl,
     "Auto",
-    136,
+    120,
     NULL,
     1,
     NULL
@@ -207,8 +213,10 @@ void TaskManualControl(void *pvParameters) {
       digitalWrite(LIGHT_PIN, LOW);
       digitalWrite(FAN_PIN, LOW);
 
-      Serial.print(F("Mode changed to: "));
-      Serial.println(manualMode ? F("MANUAL") : F("AUTO"));
+      // Signal TaskAutoControl that a mode change happened. That task
+      // is responsible for printing the "Mode changed to..." message
+      // and refreshing the LCD.
+      xSemaphoreGive(xModeSemaphore);
 
       vTaskDelay(250 / portTICK_PERIOD_MS);  // debounce
     }
@@ -280,9 +288,21 @@ void TaskAutoControl(void *pvParameters) {
 
   uint8_t lastDisplayMode   = 255;
   uint8_t lastActuatorState = 0xFF;
+  int     lastSoilMoisture  = -1;
+  int     lastTemperatureC  = -1;
+  int     lastHumidityPct   = -1;
   uint8_t serialTickCounter = 5;  // force a first print
 
   for (;;) {
+    bool needsRedraw = false;
+
+    // Mode-change signal from TaskManualControl. Non-blocking poll
+    if (xSemaphoreTake(xModeSemaphore, 0) == pdTRUE) {
+      Serial.print(F("Mode changed to: "));
+      Serial.println(manualMode ? F("MANUAL") : F("AUTO"));
+      needsRedraw = true;
+    }
+
     // Automatic actuator control
     if (manualMode == false) {
       digitalWrite(WATER_PUMP_PIN, g_soilIsDry     ? HIGH : LOW);
@@ -290,8 +310,6 @@ void TaskAutoControl(void *pvParameters) {
       digitalWrite(LIGHT_PIN,      g_humidityIsLow ? HIGH : LOW);
     }
 
-    // LCD refresh on screen change or actuator change
-    bool needsRedraw = false;
     if (displayMode != lastDisplayMode) {
       lastDisplayMode = displayMode;
       needsRedraw = true;
@@ -301,6 +319,14 @@ void TaskAutoControl(void *pvParameters) {
                           | (digitalRead(FAN_PIN)        ? 0x04 : 0);
     if (actuatorState != lastActuatorState) {
       lastActuatorState = actuatorState;
+      needsRedraw = true;
+    }
+    if (g_soilMoisture != lastSoilMoisture ||
+        g_temperatureC != lastTemperatureC ||
+        g_humidityPct  != lastHumidityPct) {
+      lastSoilMoisture = g_soilMoisture;
+      lastTemperatureC = g_temperatureC;
+      lastHumidityPct  = g_humidityPct;
       needsRedraw = true;
     }
     if (needsRedraw) {
