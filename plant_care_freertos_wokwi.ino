@@ -44,19 +44,22 @@ volatile bool manualMode = false;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-int  g_soilMoisture  = 0;
-int  g_temperatureC  = 0;
-int  g_humidityPct   = 0;
-bool g_soilIsDry     = false;
-bool g_tempIsHot     = false;
-bool g_humidityIsLow = false;
+// Written by TaskSensor, read by TaskAutoControl (and updateLCD()).
+volatile int  g_soilMoisture  = 0;
+volatile int  g_temperatureC  = 0;
+volatile int  g_humidityPct   = 0;
+volatile bool g_soilIsDry     = false;
+volatile bool g_tempIsHot     = false;
+volatile bool g_humidityIsLow = false;
 
 volatile uint8_t displayMode = 0;
 const uint8_t DISPLAY_MODE_COUNT = 5;
 
-// TASK PROTOTYPES 
+// TASK PROTOTYPES
 
-void TaskPlantCare(void *pvParameters);
+void TaskManualControl(void *pvParameters);
+void TaskSensor(void *pvParameters);
+void TaskAutoControl(void *pvParameters);
 void updateLCD();
 
 void setup() {
@@ -95,10 +98,31 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("Initializing...");
 
+  // Priority 3 (highest)
   xTaskCreate(
-    TaskPlantCare,
-    "PlantCare",
-    240,
+    TaskManualControl,
+    "Manual",
+    96,
+    NULL,
+    3,
+    NULL
+  );
+
+  // Priority 2: read sensors once a second.
+  xTaskCreate(
+    TaskSensor,
+    "Sensor",
+    80,
+    NULL,
+    2,
+    NULL
+  );
+
+  // Priority 1: drive actuators in AUTO, refresh LCD and Serial.
+  xTaskCreate(
+    TaskAutoControl,
+    "Auto",
+    136,
     NULL,
     1,
     NULL
@@ -164,76 +188,21 @@ void updateLCD() {
   }
 }
 
-// COMBINED PLANT CARE TASK
+// TASK 1: MANUAL CONTROL (priority 3, highest)
 
-void TaskPlantCare(void *pvParameters) {
+void TaskManualControl(void *pvParameters) {
   (void) pvParameters;
 
-  bool    lastModeButtonState    = HIGH;
-  bool    lastDisplayButtonState = HIGH;
-  uint8_t lastDisplayMode        = 255;
-  uint8_t lastActuatorState      = 0xFF;  
-  bool    lcdNeedsRedraw         = true;
-  uint8_t sensorTickCounter      = 10;  
+  bool lastModeButtonState    = HIGH;
+  bool lastDisplayButtonState = HIGH;
 
   for (;;) {
-    if (++sensorTickCounter >= 10) {
-      sensorTickCounter = 0;
-
-      int soilMoisture = analogRead(SOIL_MOISTURE_PIN);
-      int rawTemp      = analogRead(TEMP_PIN);
-      int rawHumidity  = analogRead(HUMIDITY_PIN);
-      int temperatureC = map(rawTemp, 0, 1023, 0, 50);
-      int humidityPct  = map(rawHumidity, 0, 1023, 0, 100);
-
-      bool soilIsDry     = soilMoisture < DRY_SOIL_THRESHOLD;
-      bool tempIsHot     = temperatureC > HOT_TEMP_THRESHOLD;
-      bool humidityIsLow = humidityPct < LOW_HUMIDITY_LIMIT;
-
-      g_soilMoisture  = soilMoisture;
-      g_temperatureC  = temperatureC;
-      g_humidityPct   = humidityPct;
-      g_soilIsDry     = soilIsDry;
-      g_tempIsHot     = tempIsHot;
-      g_humidityIsLow = humidityIsLow;
-
-      digitalWrite(SOIL_LED_PIN, soilIsDry ? HIGH : LOW);
-      digitalWrite(TEMP_LED_PIN, tempIsHot ? HIGH : LOW);
-      digitalWrite(HUMIDITY_LED_PIN, humidityIsLow ? HIGH : LOW);
-
-      if (manualMode == false) {
-        digitalWrite(WATER_PUMP_PIN, soilIsDry ? HIGH : LOW);
-        digitalWrite(FAN_PIN, tempIsHot ? HIGH : LOW);
-        digitalWrite(LIGHT_PIN, humidityIsLow ? HIGH : LOW);
-      }
-
-      // Serial monitor output
-      Serial.println(F("========== PLANT CARE SYSTEM =========="));
-      Serial.print(F("Mode: "));
-      Serial.println(manualMode ? F("MANUAL") : F("AUTO"));
-
-      Serial.print(F("Soil Moisture Raw: "));
-      Serial.print(soilMoisture);
-      Serial.println(soilIsDry ? F("  -> DRY, Soil LED ON") : F("  -> OK"));
-
-      Serial.print(F("Temperature: "));
-      Serial.print(temperatureC);
-      Serial.println(tempIsHot ? F(" C  -> HOT, Temp LED ON") : F(" C  -> OK"));
-
-      Serial.print(F("Humidity: "));
-      Serial.print(humidityPct);
-      Serial.println(humidityIsLow ? F(" %  -> LOW, Humidity LED ON") : F(" %  -> OK"));
-
-      Serial.println(manualMode ? F("Auto actuator control: PAUSED")
-                                : F("Auto actuator control: ACTIVE"));
-      Serial.println();
-
-      lcdNeedsRedraw = true;
-    }
+    // MODE button toggles AUTO / MANUAL
     bool currentModeButtonState = digitalRead(MODE_BUTTON_PIN);
     if (lastModeButtonState == HIGH && currentModeButtonState == LOW) {
       manualMode = !manualMode;
 
+      // Safety: turn OFF all actuators on mode change
       digitalWrite(WATER_PUMP_PIN, LOW);
       digitalWrite(LIGHT_PIN, LOW);
       digitalWrite(FAN_PIN, LOW);
@@ -241,11 +210,11 @@ void TaskPlantCare(void *pvParameters) {
       Serial.print(F("Mode changed to: "));
       Serial.println(manualMode ? F("MANUAL") : F("AUTO"));
 
-      lcdNeedsRedraw = true;
-      vTaskDelay(250 / portTICK_PERIOD_MS); 
+      vTaskDelay(250 / portTICK_PERIOD_MS);  // debounce
     }
     lastModeButtonState = currentModeButtonState;
 
+    // DISPLAY button cycles the LCD screen
     bool currentDisplayButtonState = digitalRead(DISPLAY_BUTTON_PIN);
     if (lastDisplayButtonState == HIGH && currentDisplayButtonState == LOW) {
       displayMode = (displayMode + 1) % DISPLAY_MODE_COUNT;
@@ -253,38 +222,116 @@ void TaskPlantCare(void *pvParameters) {
       Serial.print(F("Display mode: "));
       Serial.println(displayMode);
 
-      vTaskDelay(250 / portTICK_PERIOD_MS);  
+      vTaskDelay(250 / portTICK_PERIOD_MS);  // debounce
     }
     lastDisplayButtonState = currentDisplayButtonState;
 
+    // Mode LED ON = manual mode
     digitalWrite(MODE_LED_PIN, manualMode ? HIGH : LOW);
 
-    // Manual actuator control 
+    // Manual actuator buttons only work in manual mode
     if (manualMode == true) {
-      bool pumpButtonPressed  = digitalRead(PUMP_BUTTON_PIN) == LOW;
-      bool lightButtonPressed = digitalRead(LIGHT_BUTTON_PIN) == LOW;
-      bool fanButtonPressed   = digitalRead(FAN_BUTTON_PIN) == LOW;
-
-      digitalWrite(WATER_PUMP_PIN, pumpButtonPressed ? HIGH : LOW);
-      digitalWrite(LIGHT_PIN, lightButtonPressed ? HIGH : LOW);
-      digitalWrite(FAN_PIN, fanButtonPressed ? HIGH : LOW);
+      digitalWrite(WATER_PUMP_PIN, digitalRead(PUMP_BUTTON_PIN)  == LOW ? HIGH : LOW);
+      digitalWrite(LIGHT_PIN,      digitalRead(LIGHT_BUTTON_PIN) == LOW ? HIGH : LOW);
+      digitalWrite(FAN_PIN,        digitalRead(FAN_BUTTON_PIN)   == LOW ? HIGH : LOW);
     }
+
+    vTaskDelay(50 / portTICK_PERIOD_MS);  // 20 Hz button polling
+  }
+}
+
+// TASK 2: SENSOR READING (priority 2)
+
+void TaskSensor(void *pvParameters) {
+  (void) pvParameters;
+
+  for (;;) {
+    int soilMoisture = analogRead(SOIL_MOISTURE_PIN);
+    int rawTemp      = analogRead(TEMP_PIN);
+    int rawHumidity  = analogRead(HUMIDITY_PIN);
+
+    int temperatureC = map(rawTemp, 0, 1023, 0, 50);
+    int humidityPct  = map(rawHumidity, 0, 1023, 0, 100);
+
+    bool soilIsDry     = soilMoisture < DRY_SOIL_THRESHOLD;
+    bool tempIsHot     = temperatureC > HOT_TEMP_THRESHOLD;
+    bool humidityIsLow = humidityPct < LOW_HUMIDITY_LIMIT;
+
+    g_soilMoisture  = soilMoisture;
+    g_temperatureC  = temperatureC;
+    g_humidityPct   = humidityPct;
+    g_soilIsDry     = soilIsDry;
+    g_tempIsHot     = tempIsHot;
+    g_humidityIsLow = humidityIsLow;
+
+    // Sensor indicator LEDs (active in both AUTO and MANUAL)
+    digitalWrite(SOIL_LED_PIN,     soilIsDry     ? HIGH : LOW);
+    digitalWrite(TEMP_LED_PIN,     tempIsHot     ? HIGH : LOW);
+    digitalWrite(HUMIDITY_LED_PIN, humidityIsLow ? HIGH : LOW);
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
+
+// TASK 3: AUTO CONTROL + LCD + SERIAL (priority 1, lowest)
+
+void TaskAutoControl(void *pvParameters) {
+  (void) pvParameters;
+
+  uint8_t lastDisplayMode   = 255;
+  uint8_t lastActuatorState = 0xFF;
+  uint8_t serialTickCounter = 5;  // force a first print
+
+  for (;;) {
+    // Automatic actuator control
+    if (manualMode == false) {
+      digitalWrite(WATER_PUMP_PIN, g_soilIsDry     ? HIGH : LOW);
+      digitalWrite(FAN_PIN,        g_tempIsHot     ? HIGH : LOW);
+      digitalWrite(LIGHT_PIN,      g_humidityIsLow ? HIGH : LOW);
+    }
+
+    // LCD refresh on screen change or actuator change
+    bool needsRedraw = false;
     if (displayMode != lastDisplayMode) {
       lastDisplayMode = displayMode;
-      lcdNeedsRedraw = true;
+      needsRedraw = true;
     }
     uint8_t actuatorState = (digitalRead(WATER_PUMP_PIN) ? 0x01 : 0)
                           | (digitalRead(LIGHT_PIN)      ? 0x02 : 0)
                           | (digitalRead(FAN_PIN)        ? 0x04 : 0);
     if (actuatorState != lastActuatorState) {
       lastActuatorState = actuatorState;
-      lcdNeedsRedraw = true;
+      needsRedraw = true;
     }
-    if (lcdNeedsRedraw) {
-      lcdNeedsRedraw = false;
+    if (needsRedraw) {
       updateLCD();
     }
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    // Serial monitor: print full status every ~1 s (5 * 200 ms)
+    if (++serialTickCounter >= 5) {
+      serialTickCounter = 0;
+
+      Serial.println(F("========== PLANT CARE SYSTEM =========="));
+      Serial.print(F("Mode: "));
+      Serial.println(manualMode ? F("MANUAL") : F("AUTO"));
+
+      Serial.print(F("Soil Moisture Raw: "));
+      Serial.print(g_soilMoisture);
+      Serial.println(g_soilIsDry ? F("  -> DRY, Soil LED ON") : F("  -> OK"));
+
+      Serial.print(F("Temperature: "));
+      Serial.print(g_temperatureC);
+      Serial.println(g_tempIsHot ? F(" C  -> HOT, Temp LED ON") : F(" C  -> OK"));
+
+      Serial.print(F("Humidity: "));
+      Serial.print(g_humidityPct);
+      Serial.println(g_humidityIsLow ? F(" %  -> LOW, Humidity LED ON") : F(" %  -> OK"));
+
+      Serial.println(manualMode ? F("Auto actuator control: PAUSED")
+                                : F("Auto actuator control: ACTIVE"));
+      Serial.println();
+    }
+
+    vTaskDelay(200 / portTICK_PERIOD_MS);
   }
 }
